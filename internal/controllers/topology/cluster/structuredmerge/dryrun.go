@@ -42,8 +42,8 @@ type dryRunSSAPatchInput struct {
 	// modifiedUnstructured contains the intended changes to the object.
 	// Note: We will run SSA dry-run on originalUnstructured and modifiedUnstructured and then compare them.
 	modifiedUnstructured *unstructured.Unstructured
-	// helperOptions contains the helper options for filtering the intent.
-	helperOptions *HelperOptions
+	// filterObjectInput contains the helper options for filtering the intent.
+	filterObjectInput *ssa.FilterObjectInput
 }
 
 // dryRunSSAPatch uses server side apply dry run to determine if the operation is going to change the actual object.
@@ -68,8 +68,8 @@ func dryRunSSAPatch(ctx context.Context, dryRunCtx *dryRunSSAPatchInput) (bool, 
 	// For dry run we use the same options as for the intent but with adding metadata.managedFields
 	// to ensure that changes to ownership are detected.
 	filterObjectInput := &ssa.FilterObjectInput{
-		AllowedPaths: append(dryRunCtx.helperOptions.allowedPaths, []string{"metadata", "managedFields"}),
-		IgnorePaths:  dryRunCtx.helperOptions.ignorePaths,
+		AllowedPaths: append(dryRunCtx.filterObjectInput.AllowedPaths, []string{"metadata", "managedFields"}),
+		IgnorePaths:  dryRunCtx.filterObjectInput.IgnorePaths,
 	}
 
 	// Add TopologyDryRunAnnotation to notify validation webhooks to skip immutability checks.
