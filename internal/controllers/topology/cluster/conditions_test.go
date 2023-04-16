@@ -32,6 +32,7 @@ import (
 )
 
 func TestReconcileTopologyReconciledCondition(t *testing.T) {
+	deletionTime := metav1.Unix(0, 0)
 	tests := []struct {
 		name                 string
 		reconcileErr         error
@@ -617,6 +618,17 @@ func TestReconcileTopologyReconciledCondition(t *testing.T) {
 				HookResponseTracker: scope.NewHookResponseTracker(),
 			},
 			wantConditionStatus: corev1.ConditionTrue,
+		},
+		{
+			name: "should set the TopologyReconciledCondition to False if the cluster has been deleted",
+			cluster: &clusterv1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &deletionTime,
+				},
+			},
+			wantConditionStatus:  corev1.ConditionFalse,
+			wantConditionReason:  clusterv1.DeletedReason,
+			wantConditionMessage: "",
 		},
 	}
 
