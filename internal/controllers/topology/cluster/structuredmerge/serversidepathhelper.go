@@ -102,7 +102,7 @@ func NewServerSidePatchHelper(ctx context.Context, original, modified client.Obj
 			ssaCache:             ssaCache,
 			originalUnstructured: originalUnstructured,
 			modifiedUnstructured: modifiedUnstructured.DeepCopy(),
-			helperOptions:        helperOptions,
+			filterObjectInput:    helperOptions,
 		})
 		if err != nil {
 			return nil, err
