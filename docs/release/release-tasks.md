@@ -251,6 +251,15 @@ Additional information:
   * Create a release tag on the GitHub repository.
   * Create/update/publish GitHub releases.
 
+#### Handoff to Next Release Team Lead
+- At the end of the release cycle, the Release Team Lead should reach out to the incoming Release Team Lead lead for the next cycle to discuss handoff items.  This handoff can happen sync or async and can be used to cover any relevant release items.  The handoff should include the following items:
+   - Securely communicate zoom meeting host key for weekly RT meetings
+   - Review of any in-flight or incomplete [release tasks](#release-tasks)
+
+- Some optional, non-exclusive items include:
+   - Review of any in-flight or incomplete  [release improvement tasks](#optional-track-release-and-improvement-tasks)
+   - Overview of week one release tasks
+
 #### [Optional] Public release session
    1. Host a release session over a public zoom meeting.
    2. Record the session for future reference and transparency.
