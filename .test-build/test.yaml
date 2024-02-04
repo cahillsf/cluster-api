@@ -1,0 +1,83 @@
+apiVersion: prow.k8s.io/v1
+kind: ProwJob
+metadata:
+  annotations:
+    prow.k8s.io/context: post-cluster-api-push-images
+    prow.k8s.io/job: post-cluster-api-push-images
+    testgrid-alert-email: sig-cluster-lifecycle-cluster-api-alerts@kubernetes.io
+    testgrid-dashboards: sig-cluster-lifecycle-image-pushes, sig-k8s-infra-gcb
+    testgrid-num-failures-to-alert: "2"
+    testgrid-tab-name: post-cluster-api-push-images
+  creationTimestamp: null
+  labels:
+    created-by-prow: "true"
+    prow.k8s.io/context: post-cluster-api-push-images
+    prow.k8s.io/job: post-cluster-api-push-images
+    prow.k8s.io/refs.base_ref: main
+    prow.k8s.io/refs.org: kubernetes-sigs
+    prow.k8s.io/refs.repo: cluster-api
+    prow.k8s.io/type: postsubmit
+  name: 98d67ccc-95d0-4f3b-a778-757938065bfa
+spec:
+  agent: kubernetes
+  cluster: k8s-infra-prow-build-trusted
+  context: post-cluster-api-push-images
+  decoration_config:
+    gcs_configuration:
+      bucket: kubernetes-jenkins
+      default_org: kubernetes
+      default_repo: kubernetes
+      path_strategy: legacy
+    gcs_credentials_secret: service-account
+    grace_period: 15m0s
+    resources:
+      clonerefs:
+        requests:
+          cpu: 100m
+      initupload:
+        requests:
+          cpu: 100m
+      place_entrypoint:
+        requests:
+          cpu: 100m
+      sidecar:
+        requests:
+          cpu: 100m
+    timeout: 2h0m0s
+    utility_images:
+      clonerefs: gcr.io/k8s-prow/clonerefs:v20231213-380b89a158
+      entrypoint: gcr.io/k8s-prow/entrypoint:v20231213-380b89a158
+      initupload: gcr.io/k8s-prow/initupload:v20231213-380b89a158
+      sidecar: gcr.io/k8s-prow/sidecar:v20231213-380b89a158
+  job: post-cluster-api-push-images
+  namespace: test-pods
+  pod_spec:
+    containers:
+    - args:
+      - --project=${GCP_PROJECT}
+      - --scratch-bucket=gs://${SCRATCH_BUCKET}
+      - --env-passthrough=PULL_BASE_REF
+      - --with-git-dir
+      - --allow-dirty=true
+      - .
+      command:
+      - /run.sh
+      env:
+      - name: GOPROXY
+        value: https://proxy.golang.org
+      image: gcr.io/k8s-staging-test-infra/image-builder:v20230711-e33377c2b4
+      name: ""
+      resources: {}
+    serviceAccountName: gcb-builder
+  prowjob_defaults:
+    tenant_id: GlobalDefaultID
+  refs:
+    base_ref: main
+    base_sha: 6cbf80408b836b5f1caa1887cfb23a298772d546
+    org: kubernetes-sigs
+    repo: cluster-api
+  report: true
+  type: postsubmit
+status:
+  startTime: "2023-12-31T02:40:38Z"
+  state: triggered

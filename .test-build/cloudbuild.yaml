@@ -10,7 +10,7 @@ steps:
     env:
     - DOCKER_CLI_EXPERIMENTAL=enabled
     - TAG=$_GIT_TAG
-    - PULL_BASE_REF=$_PULL_BASE_REF
+    - PULL_BASE_REF=${TEST_TAG}
     - DOCKER_BUILDKIT=1
     args:
     - release-staging

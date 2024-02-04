@@ -45,6 +45,9 @@ export KUBEBUILDER_CONTROLPLANE_STOP_TIMEOUT ?= 60s
 
 # This option is for running docker manifest command
 export DOCKER_CLI_EXPERIMENTAL := enabled
+export TEST_TAG = test
+export GCP_PROJECT = datadog-sandbox
+export SCRATCH_BUCKET = cahillsf-testing-cli
 
 # Enables shell script tracing. Enable by running: TRACE=1 make <target>
 TRACE ?= 0
@@ -203,7 +206,10 @@ TILT_PREPARE := $(abspath $(TOOLS_BIN_DIR)/$(TILT_PREPARE_BIN))
 REGISTRY ?= gcr.io/$(shell gcloud config get-value project)
 PROD_REGISTRY ?= registry.k8s.io/cluster-api
 
-STAGING_REGISTRY ?= gcr.io/k8s-staging-cluster-api
+# STAGING_REGISTRY ?= gcr.io/k8s-staging-cluster-api
+STAGING_REGISTRY ?= us-central1-docker.pkg.dev/datadog-sandbox/cahillsf
+
+
 STAGING_BUCKET ?= artifacts.k8s-staging-cluster-api.appspot.com
 
 # core
@@ -741,7 +747,8 @@ docker-build-%:
 	$(MAKE) ARCH=$* docker-build
 
 # Choice of images to build/push
-ALL_DOCKER_BUILD ?= core kubeadm-bootstrap kubeadm-control-plane docker-infrastructure in-memory-infrastructure test-extension clusterctl
+# ALL_DOCKER_BUILD ?= core kubeadm-bootstrap kubeadm-control-plane docker-infrastructure in-memory-infrastructure test-extension clusterctl
+ALL_DOCKER_BUILD ?= docker-infrastructure test-extension
 
 .PHONY: docker-build
 docker-build: docker-pull-prerequisites ## Run docker-build-* targets for all the images
@@ -909,6 +916,11 @@ tilt-up: kind-cluster ## Start tilt and build kind cluster if needed.
 serve-book: ## Build and serve the book (with live-reload)
 	$(MAKE) -C docs/book serve
 
+.PHONY: test-post-cluster-api-push-images
+test-post-cluster-api-push-images: $(ENVSUBST_BIN)
+	cat $(ROOT_DIR)/.test-build/test.yaml | $(ENVSUBST_BIN) > $(ROOT_DIR)/local-prow.yaml
+	cat $(ROOT_DIR)/.test-build/cloudbuild.yaml | $(ENVSUBST_BIN) > $(ROOT_DIR)/cloudbuild.yaml
+
 ## --------------------------------------
 ## Release
 ## --------------------------------------
@@ -1069,13 +1081,18 @@ release-staging-nightly: ## Tag and push container images to the staging bucket.
 
 .PHONY: release-alias-tag
 release-alias-tag: ## Add the release alias tag to the last build tag
-	gcloud container images add-tag $(CONTROLLER_IMG):$(TAG) $(CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
-	gcloud container images add-tag $(KUBEADM_BOOTSTRAP_CONTROLLER_IMG):$(TAG) $(KUBEADM_BOOTSTRAP_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
-	gcloud container images add-tag $(KUBEADM_CONTROL_PLANE_CONTROLLER_IMG):$(TAG) $(KUBEADM_CONTROL_PLANE_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
-	gcloud container images add-tag $(CLUSTERCTL_IMG):$(TAG) $(CLUSTERCTL_IMG):$(RELEASE_ALIAS_TAG)
 	gcloud container images add-tag $(CAPD_CONTROLLER_IMG):$(TAG) $(CAPD_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
-	gcloud container images add-tag $(CAPIM_CONTROLLER_IMG):$(TAG) $(CAPIM_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
 	gcloud container images add-tag $(TEST_EXTENSION_IMG):$(TAG) $(TEST_EXTENSION_IMG):$(RELEASE_ALIAS_TAG)
+
+# .PHONY: release-alias-tag
+# release-alias-tag: ## Add the release alias tag to the last build tag
+# 	gcloud container images add-tag $(CONTROLLER_IMG):$(TAG) $(CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
+# 	gcloud container images add-tag $(KUBEADM_BOOTSTRAP_CONTROLLER_IMG):$(TAG) $(KUBEADM_BOOTSTRAP_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
+# 	gcloud container images add-tag $(KUBEADM_CONTROL_PLANE_CONTROLLER_IMG):$(TAG) $(KUBEADM_CONTROL_PLANE_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
+# 	gcloud container images add-tag $(CLUSTERCTL_IMG):$(TAG) $(CLUSTERCTL_IMG):$(RELEASE_ALIAS_TAG)
+# 	gcloud container images add-tag $(CAPD_CONTROLLER_IMG):$(TAG) $(CAPD_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
+# 	gcloud container images add-tag $(CAPIM_CONTROLLER_IMG):$(TAG) $(CAPIM_CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
+# 	gcloud container images add-tag $(TEST_EXTENSION_IMG):$(TAG) $(TEST_EXTENSION_IMG):$(RELEASE_ALIAS_TAG)
 
 .PHONY: release-notes-tool
 release-notes-tool:
