@@ -402,7 +402,10 @@ func (r *MachinePoolReconciler) createOrUpdateMachines(ctx context.Context, mp *
 		if existingMachine, ok := infraMachineToMachine[infraMachine.GetName()]; ok {
 			log.V(2).Info("Patching existing Machine for infraMachine", infraMachine.GetKind(), klog.KObj(infraMachine), "Machine", klog.KObj(&existingMachine))
 
-			desiredMachine := computeDesiredMachine(mp, infraMachine, &existingMachine)
+			desiredMachine, err := r.computeDesiredMachine(ctx, mp, infraMachine, &existingMachine)
+			if err != nil {
+				errs = append(errs, errors.Wrapf(err, "failed to compute desired Machine %q", klog.KObj(desiredMachine)))
+			}
 			if err := ssa.Patch(ctx, r.Client, MachinePoolControllerName, desiredMachine, ssa.WithCachingProxy{Cache: r.ssaCache, Original: &existingMachine}); err != nil {
 				log.Error(err, "failed to update Machine", "Machine", klog.KObj(desiredMachine))
 				errs = append(errs, errors.Wrapf(err, "failed to update Machine %q", klog.KObj(desiredMachine)))
@@ -410,8 +413,10 @@ func (r *MachinePoolReconciler) createOrUpdateMachines(ctx context.Context, mp *
 		} else {
 			// Otherwise create a new Machine for the infraMachine.
 			log.Info("Creating new Machine for infraMachine", "infraMachine", klog.KObj(infraMachine))
-			machine := computeDesiredMachine(mp, infraMachine, nil)
-
+			machine, err := r.computeDesiredMachine(ctx, mp, infraMachine, nil)
+			if err != nil {
+				errs = append(errs, errors.Wrapf(err, "failed to compute desired Machine %q", klog.KObj(infraMachine)))
+			}
 			if err := ssa.Patch(ctx, r.Client, MachinePoolControllerName, machine); err != nil {
 				errs = append(errs, errors.Wrapf(err, "failed to create new Machine for infraMachine %q in namespace %q", infraMachine.GetName(), infraMachine.GetNamespace()))
 				continue
@@ -432,7 +437,8 @@ func (r *MachinePoolReconciler) createOrUpdateMachines(ctx context.Context, mp *
 
 // computeDesiredMachine constructs the desired Machine for an infraMachine.
 // If the Machine exists, it ensures the Machine always owned by the MachinePool.
-func computeDesiredMachine(mp *expv1.MachinePool, infraMachine *unstructured.Unstructured, existingMachine *clusterv1.Machine) *clusterv1.Machine {
+func (r *MachinePoolReconciler) computeDesiredMachine(ctx context.Context, mp *expv1.MachinePool, infraMachine *unstructured.Unstructured, existingMachine *clusterv1.Machine) (*clusterv1.Machine, error) {
+	var err error
 	infraRef := corev1.ObjectReference{
 		APIVersion: infraMachine.GetAPIVersion(),
 		Kind:       infraMachine.GetKind(),
@@ -469,15 +475,38 @@ func computeDesiredMachine(mp *expv1.MachinePool, infraMachine *unstructured.Uns
 	// map between Machine and machinePool.Spec.Template.Labels. This would mean that adding the
 	// MachinePoolNameLabel later on the Machine would also add the labels to machinePool.Spec.Template.Labels
 	// and thus modify the labels of the MachinePool.
+	//
 	for k, v := range mp.Spec.Template.Labels {
 		machine.Labels[k] = v
+	}
+	// Set the spec.Version from Node.Status.NodeInfo.KubeletVersion
+	if existingMachine != nil {
+		fullMachine := &clusterv1.Machine{}
+		err = r.Client.Get(ctx, client.ObjectKey{Name: existingMachine.Name, Namespace: existingMachine.Namespace}, fullMachine)
+		if err == nil {
+			if fullMachine.Status.NodeRef != nil {
+				fmt.Printf("fullMachine.Status.NodeRef status is: %v\n", machine)
+			}
+		} else {
+			fmt.Printf("error is: %v\n", err)
+		}
+		remoteClient, err := r.Tracker.GetClient(ctx, client.ObjectKey{Name: mp.Spec.ClusterName, Namespace: mp.Namespace})
+		if err != nil {
+			fmt.Printf("error is: %v\n", err)
+			return nil, err
+		}
+		node := &corev1.Node{}
+		err = remoteClient.Get(ctx, client.ObjectKey{Name: existingMachine.Status.NodeRef.Name, Namespace: existingMachine.Namespace}, node)
+		if err == nil {
+			machine.Spec.Version = &node.Status.NodeInfo.KubeletVersion
+		}
 	}
 
 	// Enforce that the MachinePoolNameLabel and ClusterNameLabel are present on the Machine.
 	machine.Labels[clusterv1.MachinePoolNameLabel] = format.MustFormatValue(mp.Name)
 	machine.Labels[clusterv1.ClusterNameLabel] = mp.Spec.ClusterName
 
-	return machine
+	return machine, err
 }
 
 // infraMachineToMachinePoolMapper is a mapper function that maps an InfraMachine to the MachinePool that owns it.
