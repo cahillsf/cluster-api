@@ -292,7 +292,7 @@ func (r *MachinePoolReconciler) reconcileInfrastructure(ctx context.Context, s *
 
 	var getNodeRefsErr error
 	// Get the nodeRefsMap from the cluster.
-	s.nodeRefMap, getNodeRefsErr = r.getNodeRefMap(ctx, clusterClient)
+	s.nodeRefMap, getNodeRefsErr = r.getNodeRefMap(ctx, clusterClient, mp.Spec.ProviderIDList)
 
 	err = r.reconcileMachines(ctx, s, infraConfig)
 
@@ -569,7 +569,7 @@ func (r *MachinePoolReconciler) waitForMachineCreation(ctx context.Context, mach
 	return nil
 }
 
-func (r *MachinePoolReconciler) getNodeRefMap(ctx context.Context, c client.Client) (map[string]*corev1.Node, error) {
+func (r *MachinePoolReconciler) getNodeRefMap(ctx context.Context, c client.Client, providerIDList []string) (map[string]*corev1.Node, error) {
 	log := ctrl.LoggerFrom(ctx)
 	nodeRefsMap := make(map[string]*corev1.Node)
 	nodeList := corev1.NodeList{}
