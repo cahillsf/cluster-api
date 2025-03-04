@@ -59,7 +59,11 @@ func (o *AggregateOptions) ApplyOptions(opts []AggregateOption) *AggregateOption
 // Additionally, it is possible to inject custom merge strategies using the CustomMergeStrategy option.
 func NewAggregateCondition[T Getter](sourceObjs []T, sourceConditionType string, opts ...AggregateOption) (*metav1.Condition, error) {
 	if len(sourceObjs) == 0 {
-		return nil, errors.New("sourceObjs can't be empty")
+		return &metav1.Condition{
+			Type:   sourceConditionType,
+			Status: metav1.ConditionUnknown,
+			Reason: NotYetReportedReason,
+		}, nil
 	}
 
 	aggregateOpt := &AggregateOptions{
