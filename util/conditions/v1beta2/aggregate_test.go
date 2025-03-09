@@ -69,8 +69,10 @@ func TestAggregate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:          "Error if negative polarity conditions are misconfigured",
-			conditions:    [][]metav1.Condition{},
+			name: "Error if negative polarity conditions are misconfigured",
+			conditions: [][]metav1.Condition{
+				{{Type: clusterv1.ScalingUpV1Beta2Condition, Status: metav1.ConditionTrue, Reason: "Reason-1", Message: "Message-1"}},
+			},
 			conditionType: clusterv1.ScalingUpV1Beta2Condition,
 			options:       []AggregateOption{NegativePolarityConditionTypes{"foo"}}, // NegativePolarityConditionTypes if set must equal source condition
 			want:          nil,
@@ -420,6 +422,16 @@ func TestAggregate(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:          "Empty source objects return an unknown condition with status not yet reported",
+			conditionType: clusterv1.AvailableV1Beta2Condition,
+			want: &metav1.Condition{
+				Type:   clusterv1.AvailableV1Beta2Condition,
+				Status: metav1.ConditionUnknown,
+				Reason: NotYetReportedReason,
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -446,10 +458,4 @@ func TestAggregate(t *testing.T) {
 		})
 	}
 
-	t.Run("Fails if source objects are empty", func(t *testing.T) {
-		var objs []*builder.Phase3Obj
-		g := NewWithT(t)
-		_, err := NewAggregateCondition(objs, clusterv1.AvailableV1Beta2Condition)
-		g.Expect(err).To(HaveOccurred())
-	})
 }
