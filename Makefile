@@ -1125,6 +1125,7 @@ release-binary: $(RELEASE_DIR)
 release-staging: ## Build and push container images to the staging bucket
 	REGISTRY=$(STAGING_REGISTRY) $(MAKE) docker-build-all
 	REGISTRY=$(STAGING_REGISTRY) $(MAKE) docker-image-verify
+	$(MAKE) attach-sbom-all
 	REGISTRY=$(STAGING_REGISTRY) $(MAKE) docker-push-all
 	REGISTRY=$(STAGING_REGISTRY) $(MAKE) release-alias-tag
 	# Set the manifest image to the staging bucket.
@@ -1286,6 +1287,46 @@ set-manifest-pull-policy:
 set-manifest-image:
 	$(info Updating kustomize image patch file for manager resource)
 	sed -i'' -e 's@image: .*@image: '"${MANIFEST_IMG}:$(MANIFEST_TAG)"'@' $(TARGET_RESOURCE)
+
+## --------------------------------------
+## cosign SBOM
+## --------------------------------------
+
+.PHONY: attach-sbom-all
+attach-sbom-all: $(addprefix attach-sbom-,$(ALL_ARCH)) ## Generate and attach SBOM for all container images
+
+attach-sbom-%:
+	$(MAKE) ARCH=$* attach-sbom
+
+.PHONY: attach-sbom-core
+attach-sbom-core: ## Generate and sign SBOM for core image
+	cosign generate-attestation --predicate-type=spdx $(CONTROLLER_IMG)-$(ARCH):$(TAG) > sbom-core-$(ARCH).spdx.json
+	cosign sign-attestation --predicate sbom-core-$(ARCH).spdx.json $(CONTROLLER_IMG)-$(ARCH):$(TAG)
+
+.PHONY: attach-sbom-kubeadm-bootstrap
+attach-sbom-kubeadm-bootstrap: ## Generate and sign SBOM for kubeadm bootstrap image
+	cosign generate-attestation --predicate-type=spdx $(KUBEADM_BOOTSTRAP_CONTROLLER_IMG)-$(ARCH):$(TAG) > sbom-bootstrap-$(ARCH).spdx.json
+	cosign sign-attestation --predicate sbom-bootstrap-$(ARCH).spdx.json $(KUBEADM_BOOTSTRAP_CONTROLLER_IMG)-$(ARCH):$(TAG)
+
+.PHONY: attach-sbom-kubeadm-control-plane
+attach-sbom-kubeadm-control-plane: ## Generate and sign SBOM for kubeadm control plane image
+	cosign generate-attestation --predicate-type=spdx $(KUBEADM_CONTROL_PLANE_CONTROLLER_IMG)-$(ARCH):$(TAG) > sbom-control-plane-$(ARCH).spdx.json
+	cosign sign-attestation --predicate sbom-control-plane-$(ARCH).spdx.json $(KUBEADM_CONTROL_PLANE_CONTROLLER_IMG)-$(ARCH):$(TAG)
+
+.PHONY: attach-sbom-docker-infrastructure
+attach-sbom-docker-infrastructure: ## Generate and sign SBOM for docker infrastructure image
+	cosign generate-attestation --predicate-type=spdx $(CAPD_CONTROLLER_IMG)-$(ARCH):$(TAG) > sbom-docker-infra-$(ARCH).spdx.json
+	cosign sign-attestation --predicate sbom-docker-infra-$(ARCH).spdx.json $(CAPD_CONTROLLER_IMG)-$(ARCH):$(TAG)
+
+.PHONY: attach-sbom-test-extension
+attach-sbom-test-extension: ## Generate and sign SBOM for test extension image
+	cosign generate-attestation --predicate-type=spdx $(TEST_EXTENSION_IMG)-$(ARCH):$(TAG) > sbom-test-extension-$(ARCH).spdx.json
+	cosign sign-attestation --predicate sbom-test-extension-$(ARCH).spdx.json $(TEST_EXTENSION_IMG)-$(ARCH):$(TAG)
+
+.PHONY: attach-sbom-clusterctl
+attach-sbom-clusterctl: ## Generate and sign SBOM for clusterctl image
+	cosign generate-attestation --predicate-type=spdx $(CLUSTERCTL_IMG)-$(ARCH):$(TAG) > sbom-clusterctl-$(ARCH).spdx.json
+	cosign sign-attestation --predicate sbom-clusterctl-$(ARCH).spdx.json $(CLUSTERCTL_IMG)-$(ARCH):$(TAG)
 
 ## --------------------------------------
 ## Cleanup / Verification
